@@ -6,24 +6,34 @@ import sys
 def main():
     pylint_cfg_path = os.path.join( os.path.dirname(\
                         os.path.abspath(__file__)), 'conf')
-    pylint_cfg_fname = 'pylint_vauxoo.cfg'
-    workdir = os.getcwd()
+    pylint_cfg_fname = 'pylint_vauxoo.cfg'#TODO: Receive as params
 
-    #Fix pylint path. More info: 
+    #TODO: get params from terminal
+    if len(sys.argv) >= 2:
+        workdir = sys.argv[1]
+    else:
+        workdir = os.getcwd()
+
+    #Fixed pylint path. More info: 
     #    https://www.mail-archive.com/code-quality@python.org/msg00294.html
+    to_delete = False
     fpath_main_init = os.path.join(workdir, '__init__.py')
     if not os.path.isfile( fpath_main_init ):
-        open(fpath_main_init, "w")
-    os.environ['PYTHONPATH'] += ":"+workdir #TODO: win compatibility
-    #TODO: Set environment odoo path
-    #TODO: Get log
-    pylint_cfg_fname_path = os.path.join( pylint_cfg_path, pylint_cfg_fname)
-    if os.path.isfile( pylint_cfg_fname_path ):
-        cmd = "pylint --rcfile=%s %s"%(pylint_cfg_fname_path, workdir)
-        print "cmd", cmd
-        subprocess.check_call(cmd, shell=True)
-    else:
-        print "File not exists [%s]"%( pylint_cfg_fname_path )#TODO: log error
+        to_delete = True
+    try:
+        if to_delete:
+            open(fpath_main_init, "w")
+        os.environ['PYTHONPATH'] += ":"+workdir #TODO: win compatibility
+        pylint_cfg_fname_path = os.path.join( pylint_cfg_path, pylint_cfg_fname)
+        if os.path.isfile( pylint_cfg_fname_path ):
+            cmd = "pylint --rcfile=%s %s"%(pylint_cfg_fname_path, workdir)
+            print "cmd", cmd#TODO: log info
+            subprocess.check_call(cmd, shell=True)
+        else:
+            print "File not exists [%s]"%( pylint_cfg_fname_path )#TODO: log error
+    finally:
+        if to_delete:
+            os.remove( fpath_main_init )
     return 0
 
 if __name__ == '__main__':
