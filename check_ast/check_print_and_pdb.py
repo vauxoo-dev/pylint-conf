@@ -23,13 +23,17 @@ def check_custom_lint(dir_path):
                 if parsed:
                     for node in ast.walk(parsed):
                         if isinstance(node, ast.Print):
-                            logging.warning( '{}:{}: [print sentence] "print" sentence detected'.format(\
-                                fname_path, node.lineno) )
+                            #logging.warning( '{}:{}: [print sentence] "print" sentence detected'.format(\
+                                #fname_path, node.lineno) )
+                            print '{}:{}: [print sentence] "print" sentence detected'.format(\
+                                fname_path, node.lineno)
                         elif isinstance(node, ast.Import):
                             for import_name in node.names:
                                 if import_name.name == 'pdb':
-                                    logging.warning( '{}:{}: [import pdb sentence] "import pdb" sentence detected'.format(\
-                                fname_path, node.lineno) )
+                                    #logging.warning( '{}:{}: [import pdb sentence] "import pdb" sentence detected'.format(\
+                                #fname_path, node.lineno) )
+                                    print '{}:{}: [import pdb sentence] "import pdb" sentence detected'.format(\
+                                fname_path, node.lineno)
 
 
 def main():
