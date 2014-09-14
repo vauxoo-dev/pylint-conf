@@ -1,11 +1,8 @@
 #!/usr/bin/env python
-
 import ast
 import sys
 import os
 import logging
-
-from colorized_log import main_func
 
 """
 This script check py file for no get "print" or "pdb" sentence.
@@ -13,7 +10,6 @@ This script check py file for no get "print" or "pdb" sentence.
 
 def check_custom_lint(dir_path):
     for dirname, dirnames, filenames in os.walk(dir_path):
-        print "dirname, dirnames, filenames",dirname, dirnames, filenames
         for filename in filenames:
             fext = os.path.splitext(filename)[1]
             if fext == '.py':
@@ -27,14 +23,11 @@ def check_custom_lint(dir_path):
                 if parsed:
                     for node in ast.walk(parsed):
                         if isinstance(node, ast.Print):
-                            #if "print" sentence then add a out
-                            #print '"print" at line {} col {} file {}'.format(node.lineno, node.col_offset, fname_path)
                             logging.warning( '{}:{}: [print sentence] "print" sentence detected'.format(\
                                 fname_path, node.lineno) )
                         elif isinstance(node, ast.Import):
                             for import_name in node.names:
                                 if import_name.name == 'pdb':
-                                    #if "print" sentence then add a out
                                     logging.warning( '{}:{}: [import pdb sentence] "import pdb" sentence detected'.format(\
                                 fname_path, node.lineno) )
 
