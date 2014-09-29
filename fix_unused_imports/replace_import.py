@@ -2,6 +2,17 @@
 import os
 import sys
 
+"""
+@sys.argv[1]: path of dirname with all python packages.
+
+Script to run
+autoflake --remove-all-unused-imports -ri sys.argv[1]
+
+This script required autoflake pip package
+pip install autoflake
+
+"""
+
 def run(l, env=None):
     """Run a command described by l in environment env"""
     #log("run", l)
