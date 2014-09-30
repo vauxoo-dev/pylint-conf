@@ -114,6 +114,13 @@ def pool_get_wo_assigned(fdata, func_name_list=None):
                 pass
     #print sorted(list(set(linenos)))
     return code_data_lines
+def compile_ok(fname_path):
+    try:
+        compile(open(fname_path).read(), fname_path, "exec")
+        return True
+    except:
+        pass
+    return False
 
 def delete_linenos(fname_path, linenos_list):
     if linenos_list:
@@ -121,16 +128,12 @@ def delete_linenos(fname_path, linenos_list):
             [str(item) for item in linenos_list] ) + 'd'
         cmd_sed = ["sed", "-i.bkp", "-e", linenos_to_delete_cmd, fname_path]
         run(cmd_sed)
-        try:
-            compile(open(fname_path).read(), fname_path, "exec")
-            #without error in compile, remove original
+        compile_result = compile_ok(fname_path)
+        if compile_result:
             os.remove(fname_path + ".bkp")
-            return True
-        except:
-            #error in compile, restore original
+        else:
             os.rename(fname_path + ".bkp", fname_path)
-    return False
-
+    return compile_result
 
 
 def fix_custom_lint(dir_path, context=None):
@@ -138,6 +141,7 @@ def fix_custom_lint(dir_path, context=None):
         context = {
             'fix_unused_import': True,
             'fix_unused_var': True,
+            'fix_autotpep8': False,#By default False because is not complete
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -183,12 +187,21 @@ def fix_custom_lint(dir_path, context=None):
                         with open(fname_path, "w") as fin:
                             fdata = fin.write( fdata )
 
+                    if context.get('fix_autotpep8'):
+                        open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
+                        run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])
+                        compile_ok_result = compile_ok(fname_path)
+                        if compile_ok_result:
+                            os.remove(fname_path + ".bkp")
+                        else:
+                            os.rename(fname_path + ".bkp", fname_path)
 
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
     fix_custom_lint(dir_path, {'fix_unused_import': True})
 
 def main():
+    #TODO: Use option "--" and "-"
     if len( sys.argv ) == 2 and os.path.isdir(sys.argv[1]):
         fix_autoflake_remove_all_unused_imports(sys.argv[1])
     elif len( sys.argv ) == 3 and os.path.isdir(sys.argv[1]):
