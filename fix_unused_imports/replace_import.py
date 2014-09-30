@@ -161,7 +161,7 @@ def fix_custom_lint(dir_path, context=None):
                             fdata = fin.read()
                         lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata, \
                             ['fields_get', 'search', 'browse', 'get', 'LocalService',\
-                                'ServerProxy', 'read', 'get_pool'])
+                                'ServerProxy', 'get_pool'])
                         linenos_to_delete = []
                         for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
                             lineno = line_pool_get_wo_assigned.get('lineno')
