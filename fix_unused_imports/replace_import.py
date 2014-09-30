@@ -61,39 +61,54 @@ def multi_getattr(obj, attr, default=None):
                # raise
     return obj
 
-def pool_get_wo_assigned(fdata):
+def get_node_fc_data(node):
+    args = multi_getattr(node, "value.args")
+    args_str = ''
+    if isinstance(args, list):
+        args_str = ','.join([arg.s for arg in args if hasattr(args, 's')])
+    code_data_line = {
+        'lineno': node.lineno,
+        'col_offset': node.col_offset,
+        'node': node,
+        'code': "{}.{}.{}('{}')".format( multi_getattr(node, "value.func.value.value.id"), \
+        multi_getattr(node, "value.func.value.attr"), \
+        multi_getattr(node, "value.func.attr"), \
+        args_str),
+    }
+    return code_data_line
+
+
+
+def pool_get_wo_assigned(fdata, func_name_list=None):
     try:
         parsed = ast.parse(fdata)
     except:
         parsed = None
     code_data_lines = []
+    if func_name_list is None:
+        func_name_list = []
     if parsed:
         for node in ast.walk(parsed):
           #print multi_getattr(node, "lineno")
           #linenos.append(multi_getattr(node, "lineno"))
-          #if multi_getattr(node, "lineno") == 81:
+          #if multi_getattr(node, "lineno") == 41:
+           #if isinstance( node, ast.Expr ) and isinstance( multi_getattr(node, "value"), ast.Call):
             #import pdb;pdb.set_trace()
             if isinstance( node, ast.Expr ) and isinstance( multi_getattr(node, "value"), ast.Call):
                 if multi_getattr(node, "value.func.value.value.id") == 'self' and\
                         multi_getattr(node, "value.func.value.attr") == 'pool' and\
                         multi_getattr(node, "value.func.attr") == 'get':
-                    args = multi_getattr(node, "value.args")
-                    args_str = ''
-                    if isinstance(args, list):
-                        args_str = ','.join([arg.s for arg in args])
-                    code_data_line = {
-                        'lineno': node.lineno,
-                        'col_offset': node.col_offset,
-                        'node': node,
-                        'code': "{}.{}.{}('{}')".format( multi_getattr(node, "value.func.value.value.id"), \
-                        multi_getattr(node, "value.func.value.attr"), \
-                        multi_getattr(node, "value.func.attr"), \
-                        args_str),
-                    }
-                    #print "code_data_line",code_data_line
+                    code_data_line = get_node_fc_data(node)
                     code_data_lines.append( code_data_line )
                     #TODO: Check netsvc.LocalService
-            if isinstance( node, ast.Expr ) and isinstance( multi_getattr(node, "value"), ast.Subscript):
+                elif multi_getattr(node, "value.func.attr") == 'copy' and\
+                        multi_getattr(node, "value.func.value.id") == 'context':
+                    code_data_line = get_node_fc_data(node)
+                    code_data_lines.append( code_data_line )
+                elif multi_getattr(node, "value.func.attr") in func_name_list:
+                    code_data_line = get_node_fc_data(node)
+                    code_data_lines.append( code_data_line )
+            #if isinstance( node, ast.Expr ) and isinstance( multi_getattr(node, "value"), ast.Subscript):
                 #result['context'] #node.value.slice.value.s --> context
                                    #node.value.value.id --> result
                 pass
@@ -127,6 +142,8 @@ def fix_custom_lint(dir_path, context=None):
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
               #if 'hr_expense_replenishment/' in dirname and filename == 'hr_expense.py':
+              #if 'account_move_line_address' in dirname and filename == 'account_move_line.py':
+              #if 'payroll_amount_residual' in dirname and filename == 'hr_payslip.py':
                 fname_woext, fext = os.path.splitext(filename)
                 if fext == '.py' and fname_woext != '__init__' \
                     and fname_woext != '__openerp__'\
@@ -142,7 +159,9 @@ def fix_custom_lint(dir_path, context=None):
 
                         with open(fname_path) as fin:
                             fdata = fin.read()
-                        lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata)
+                        lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata, \
+                            ['fields_get', 'search', 'browse', 'get', 'LocalService',\
+                                'ServerProxy', 'read', 'get_pool'])
                         linenos_to_delete = []
                         for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
                             lineno = line_pool_get_wo_assigned.get('lineno')
