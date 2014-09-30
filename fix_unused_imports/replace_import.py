@@ -2,15 +2,17 @@
 import os
 import sys
 import ast
+import subprocess
 
 """
 @sys.argv[1]: path of dirname with all python packages.
 
-Script to run
-autoflake --remove-all-unused-imports -ri sys.argv[1]
+This script delete remove all unused imports and remove all unused variable
 
-This script required autoflake pip package
+This script required:
 pip install autoflake
+pip install pylint
+sed
 
 """
 
@@ -34,6 +36,11 @@ def run(l, env=None):
             rc = os.spawnvp(os.P_WAIT, tmp[0], tmp)
     #log("run", rc=rc)
     return rc
+
+def run_output(l, cwd=None):
+    #log("run_output",l)
+    #print "run output:", ' '.join( l ), "into", cwd
+    return subprocess.Popen(l, stdout=subprocess.PIPE, cwd=cwd).communicate()[0]
 
 def multi_getattr(obj, attr, default=None):
     """
@@ -60,12 +67,12 @@ def pool_get_wo_assigned(fdata):
     except:
         parsed = None
     code_data_lines = []
-    linenos = []
     if parsed:
         for node in ast.walk(parsed):
           #print multi_getattr(node, "lineno")
           #linenos.append(multi_getattr(node, "lineno"))
-          #if multi_getattr(node, "lineno") == 38:
+          #if multi_getattr(node, "lineno") == 81:
+            #import pdb;pdb.set_trace()
             if isinstance( node, ast.Expr ) and isinstance( multi_getattr(node, "value"), ast.Call):
                 if multi_getattr(node, "value.func.value.value.id") == 'self' and\
                         multi_getattr(node, "value.func.value.attr") == 'pool' and\
@@ -86,8 +93,30 @@ def pool_get_wo_assigned(fdata):
                     #print "code_data_line",code_data_line
                     code_data_lines.append( code_data_line )
                     #TODO: Check netsvc.LocalService
+            if isinstance( node, ast.Expr ) and isinstance( multi_getattr(node, "value"), ast.Subscript):
+                #result['context'] #node.value.slice.value.s --> context
+                                   #node.value.value.id --> result
+                pass
     #print sorted(list(set(linenos)))
     return code_data_lines
+
+def delete_linenos(fname_path, linenos_list):
+    if linenos_list:
+        linenos_to_delete_cmd = 'd;'.join( \
+            [str(item) for item in linenos_list] ) + 'd'
+        cmd_sed = ["sed", "-i.bkp", "-e", linenos_to_delete_cmd, fname_path]
+        run(cmd_sed)
+        try:
+            compile(open(fname_path).read(), fname_path, "exec")
+            #without error in compile, remove original
+            os.remove(fname_path + ".bkp")
+            return True
+        except:
+            #error in compile, restore original
+            os.rename(fname_path + ".bkp", fname_path)
+    return False
+
+
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
@@ -97,7 +126,7 @@ def fix_custom_lint(dir_path, context=None):
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
-              #if filename == 'validate_structure.py':
+              #if 'hr_expense_replenishment/' in dirname and filename == 'hr_expense.py':
                 fname_woext, fext = os.path.splitext(filename)
                 if fext == '.py' and fname_woext != '__init__' \
                     and fname_woext != '__openerp__'\
@@ -106,24 +135,19 @@ def fix_custom_lint(dir_path, context=None):
                     if context.get('fix_unused_var'):
                         run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
 
+                        cmd = ["pylint", "-d", "all", "-e", "W0104", "-r", "n", '--msg-template="{line}"', fname_path]
+                        pylint_out = run_output(cmd)
+                        linenos_to_delete = [int(s) for s in pylint_out.split() if s.isdigit()]
+                        delete_linenos(fname_path, linenos_to_delete)
+
                         with open(fname_path) as fin:
                             fdata = fin.read()
-                        #fdata = '\n'.join( fdata_lines )
-                        #print "fname_path",fname_path
                         lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata)
-
                         linenos_to_delete = []
-                        #linenos_to_delete_cmd = ''
                         for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
                             lineno = line_pool_get_wo_assigned.get('lineno')
                             linenos_to_delete.append(lineno)
-                            #linenos_to_delete_cmd += str(lineno) + 'd;'
-                            #print lineno,
-                            #print line_pool_get_wo_assigned.get('code')
-                        if linenos_to_delete:
-                            linenos_to_delete_cmd = 'd;'.join( [str(item) for item in linenos_to_delete] ) + 'd'
-                            run(["sed", "-i.bkp", "-e", linenos_to_delete_cmd, fname_path])
-                            os.remove(fname_path + ".bkp")
+                        delete_linenos(fname_path, linenos_to_delete)
 
                     if context.get('fix_unused_import'):
                         run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
