@@ -141,7 +141,7 @@ def fix_custom_lint(dir_path, context=None):
         context = {
             'fix_unused_import': True,
             'fix_unused_var': True,
-            'fix_autotpep8': False,#By default False because is not complete
+            'fix_autopep8': False,#By default False because is not complete
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -187,7 +187,7 @@ def fix_custom_lint(dir_path, context=None):
                         with open(fname_path, "w") as fin:
                             fdata = fin.write( fdata )
 
-                    if context.get('fix_autotpep8'):
+                    if context.get('fix_autopep8'):
                         open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
                         run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])
                         compile_ok_result = compile_ok(fname_path)
