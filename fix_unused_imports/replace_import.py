@@ -135,6 +135,43 @@ def delete_linenos(fname_path, linenos_list):
             os.rename(fname_path + ".bkp", fname_path)
     return compile_result
 
+def search_relative_imports(path):
+    """
+    This method is used to search relative imports in py files.
+
+    :param paths: Path of py files to check relative imports.
+    """
+    with open(path) as fin:
+        parsed = ast.parse(fin.read())
+    data = []
+    with open(path, 'r') as file:
+        data = file.readlines()
+        data_ori = list(data)
+    for node in ast.walk(parsed):
+        if isinstance(node, ast.Import):
+            names_imports = []
+            for name_import in multi_getattr(node, "names"):
+                str_import_name = multi_getattr(name_import, "name")
+                if os.path.isdir(os.path.join(os.path.split(path)[0], str_import_name)) or os.path.isfile("{}.py".format(os.path.join(os.path.split(path)[0], str_import_name))):
+                    names_imports.append(str_import_name)
+                else:
+                    import_change = "import {}\n".format(str_import_name)
+                    if not import_change in data:
+                        data.insert(node.__dict__.get("lineno"), import_change)
+
+            if names_imports:
+                import_change = "from . import {}\n".format(', '.join(names_imports))
+                data[node.__dict__.get("lineno")-1] = import_change
+        if isinstance(node, ast.ImportFrom):
+            if multi_getattr(node, "module"):
+                to_check = os.path.join(os.path.split(path)[0], multi_getattr(node, "module"))
+                if os.path.isdir(to_check) and os.path.join(to_check,"__init__.py"):
+                    import_change = "from .{} import {}\n".format(multi_getattr(node, "module"), ", ".join([import_name.name for import_name in multi_getattr(node, "names")]))
+                    data[node.__dict__.get("lineno")-1] = import_change
+    if data != data_ori:
+        with open(path, 'w') as file:
+            file.writelines( data )
+
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
@@ -142,6 +179,7 @@ def fix_custom_lint(dir_path, context=None):
             'fix_unused_import': True,
             'fix_unused_var': True,
             'fix_autopep8': False,#By default False because is not complete
+            'fix_relative_imports': False,
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -149,10 +187,10 @@ def fix_custom_lint(dir_path, context=None):
               #if 'account_move_line_address' in dirname and filename == 'account_move_line.py':
               #if 'payroll_amount_residual' in dirname and filename == 'hr_payslip.py':
                 fname_woext, fext = os.path.splitext(filename)
+                fname_path = os.path.join(dirname, filename)
                 if fext == '.py' and fname_woext != '__init__' \
                     and fname_woext != '__openerp__'\
                     and fname_woext != '__terp__':
-                    fname_path = os.path.join(dirname, filename)
                     if context.get('fix_unused_var'):
                         run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
 
@@ -196,6 +234,15 @@ def fix_custom_lint(dir_path, context=None):
                         else:
                             os.rename(fname_path + ".bkp", fname_path)
 
+                if fext == '.py':
+                    if context.get('fix_relative_imports'):
+                        open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
+                        search_relative_imports(fname_path)
+                        compile_ok_result = compile_ok(fname_path)
+                        if compile_ok_result:
+                            os.remove(fname_path + ".bkp")
+                        else:
+                            os.rename(fname_path + ".bkp", fname_path)
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
     fix_custom_lint(dir_path, {'fix_unused_import': True})
