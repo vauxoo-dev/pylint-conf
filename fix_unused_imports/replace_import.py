@@ -124,6 +124,7 @@ def compile_ok(fname_path):
     return False
 
 def delete_linenos(fname_path, linenos_list):
+    compile_result = None
     if linenos_list:
         linenos_to_delete_cmd = 'd;'.join( \
             [str(item) for item in linenos_list] ) + 'd'
@@ -183,13 +184,41 @@ def search_relative_imports(path):
         else:
             continue
 
+def get_pylint_error_linenos(fname_path, error_list):
+    if isinstance(error_list, str) or isinstance(error_list, basestring):
+        error_list = error_list and [error_list] or []
+    linenos = []
+    if error_list:
+        cmd_error_list = []
+        for error_str in error_list:
+            cmd_error_list.extend(['-e', error_str])
+        cmd = ["pylint", "-d", "all"] + cmd_error_list + \
+              ["-r", "n", '--msg-template="{line}"', fname_path]
+        pylint_out = run_output(cmd)
+        linenos = [int(s) for s in pylint_out.split() if s.isdigit()]
+    return linenos
+
+def remove_trailing_whitespace(fname_path):
+    compile_result = None
+    cmd_sed = ["sed", "-i.bkp", 's/[ \t]*$//', fname_path]
+    run(cmd_sed)
+    compile_result = compile_ok(fname_path)
+    if compile_result:
+        os.remove(fname_path + ".bkp")
+    else:
+        os.rename(fname_path + ".bkp", fname_path)
+    return compile_result
+
 def fix_custom_lint(dir_path, context=None):
     if context is None:
         context = {
             'fix_unused_import': True,
             'fix_unused_var': True,
-            'fix_autopep8': False,#By default False because is not complete
-            'fix_relative_imports': False,
+            'fix_autopep8': True,
+            'fix_trailing_whitespace': True,
+            'remove_linenos_pylint_w0104': True,
+            'remove_linenos_pylint_w0404': True,
+            'fix_relative_imports': True,
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -198,53 +227,69 @@ def fix_custom_lint(dir_path, context=None):
               #if 'payroll_amount_residual' in dirname and filename == 'hr_payslip.py':
                 fname_woext, fext = os.path.splitext(filename)
                 fname_path = os.path.join(dirname, filename)
-                if fext == '.py' and fname_woext != '__init__' \
-                    and fname_woext != '__openerp__'\
-                    and fname_woext != '__terp__':
-                    if context.get('fix_unused_var'):
-                        run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
-
-                        cmd = ["pylint", "-d", "all", "-e", "W0104", "-r", "n", '--msg-template="{line}"', fname_path]
-                        pylint_out = run_output(cmd)
-                        linenos_to_delete = [int(s) for s in pylint_out.split() if s.isdigit()]
-                        delete_linenos(fname_path, linenos_to_delete)
-
-                        with open(fname_path) as fin:
-                            fdata = fin.read()
-                        lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata, \
-                            ['fields_get', 'search', 'browse', 'get', 'LocalService',\
-                                'ServerProxy', 'get_pool'])
-                        linenos_to_delete = []
-                        for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
-                            lineno = line_pool_get_wo_assigned.get('lineno')
-                            linenos_to_delete.append(lineno)
-                        delete_linenos(fname_path, linenos_to_delete)
-
-                    if context.get('fix_unused_import'):
-                        run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
-                        with open(fname_path) as fin:
-                            fdata = fin.read()
-                        #TODO: IMP with ast library
-                        if "from openerp.osv import fields\nfrom openerp.osv import osv" in fdata:
-                            fdata = fdata.replace("from openerp.osv import fields\nfrom openerp.osv import osv",
-                                "from openerp.osv import osv, fields")
-                        if "from openerp.osv import osv\nfrom openerp.osv import fields" in fdata:
-                            fdata = fdata.replace("from openerp.osv import osv\nfrom openerp.osv import fields",
-                                "from openerp.osv import osv, fields")
-                        #TODO: Only re-save it if was modify
-                        with open(fname_path, "w") as fin:
-                            fdata = fin.write( fdata )
-
-                    if context.get('fix_autopep8'):
-                        open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
-                        run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])
-                        compile_ok_result = compile_ok(fname_path)
-                        if compile_ok_result:
-                            os.remove(fname_path + ".bkp")
-                        else:
-                            os.rename(fname_path + ".bkp", fname_path)
-
                 if fext == '.py':
+                    compile_ok_result = compile_ok(fname_path)
+                    if not compile_ok_result:
+                        print "*"*20,"syntaxis error in file",fname_path#TODO: Make a log warning
+                        continue
+                    if fname_woext not in ['__init__', '__openerp__', '__terp__']:
+                        if context.get('fix_unused_var'):
+                            run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
+
+                            with open(fname_path) as fin:
+                                fdata = fin.read()
+                            lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata, \
+                                ['fields_get', 'search', 'browse', 'get', 'LocalService',\
+                                    'ServerProxy', 'get_pool'])
+                            linenos_to_delete = []
+                            for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
+                                lineno = line_pool_get_wo_assigned.get('lineno')
+                                linenos_to_delete.append(lineno)
+                            delete_linenos(fname_path, linenos_to_delete)
+
+                        if context.get('fix_unused_import'):
+                            run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
+                            with open(fname_path) as fin:
+                                fdata = fin.read()
+                            #TODO: IMP with ast library
+                            if "from openerp.osv import fields\nfrom openerp.osv import osv" in fdata:
+                                fdata = fdata.replace("from openerp.osv import fields\nfrom openerp.osv import osv",
+                                    "from openerp.osv import osv, fields")
+                            if "from openerp.osv import osv\nfrom openerp.osv import fields" in fdata:
+                                fdata = fdata.replace("from openerp.osv import osv\nfrom openerp.osv import fields",
+                                    "from openerp.osv import osv, fields")
+                            #TODO: Only re-save it if was modify
+                            with open(fname_path, "w") as fin:
+                                fdata = fin.write( fdata )
+
+                        if context.get('fix_autopep8'):
+                            open(fname_path + '.bkp', "w").write( 
+                                 open(fname_path, "r").read() )
+                            #Ignore fix max-line-length and continuation line
+                            #  under-indented for visual indent. 
+                            #  We have mute this errors in our pylint
+                            run(["autopep8", "-i", "--ignore", "E501,E128", fname_path])
+                            compile_ok_result = compile_ok(fname_path)
+                            if compile_ok_result:
+                                os.remove(fname_path + ".bkp")
+                            else:
+                                os.rename(fname_path + ".bkp", fname_path)
+
+                        error_list = []
+                        #Statement seems to have no effect
+                        if context.get('remove_linenos_pylint_w0104'):
+                            error_list.append('w0104')
+                        #Reimport
+                        if context.get('remove_linenos_pylint_w0404'):
+                            error_list.append('w0404')
+                        if error_list:
+                            linenos_to_delete = get_pylint_error_linenos(\
+                                fname_path, error_list)
+                            delete_linenos(fname_path, linenos_to_delete)
+
+                    if context.get('fix_trailing_whitespace'):
+                        remove_trailing_whitespace(fname_path)
+
                     if context.get('fix_relative_imports'):
                         open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
                         search_relative_imports(fname_path)
@@ -253,6 +298,7 @@ def fix_custom_lint(dir_path, context=None):
                             os.remove(fname_path + ".bkp")
                         else:
                             os.rename(fname_path + ".bkp", fname_path)
+                    #TODO: Change <> by !=
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
     fix_custom_lint(dir_path, {'fix_unused_import': True})
@@ -267,7 +313,8 @@ def main():
         else:
             fix_custom_lint(sys.argv[1], context={sys.argv[2]: True})
     else:
-        logging.warning("First param should be directoy path to check")
+        #logging.warning("First param should be directoy path to check")
+        print "First param should be directoy path to check"#ToDo: Add warning
 
 if __name__ == '__main__':
     exit(main())
