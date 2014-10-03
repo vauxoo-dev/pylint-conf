@@ -114,6 +114,7 @@ def pool_get_wo_assigned(fdata, func_name_list=None):
                 pass
     #print sorted(list(set(linenos)))
     return code_data_lines
+
 def compile_ok(fname_path):
     try:
         compile(open(fname_path).read(), fname_path, "exec")
@@ -136,13 +137,43 @@ def delete_linenos(fname_path, linenos_list):
             os.rename(fname_path + ".bkp", fname_path)
     return compile_result
 
+def get_pylint_error_linenos(fname_path, error_list):
+    if isinstance(error_list, str) or isinstance(error_list, basestring):
+        error_list = error_list and [error_list] or []
+    linenos = []
+    if error_list:
+        cmd_error_list = []
+        for error_str in error_list:
+            cmd_error_list.extend(['-e', error_str])
+        cmd = ["pylint", "-d", "all"] + cmd_error_list + \
+              ["-r", "n", '--msg-template="{line}"', fname_path]
+        pylint_out = run_output(cmd)
+        linenos = [int(s) for s in pylint_out.split() if s.isdigit()]
+    return linenos
+
+    
+
+def remove_trailing_whitespace(fname_path):
+    compile_result = None
+    cmd_sed = ["sed", "-i.bkp", 's/[ \t]*$//', fname_path]
+    run(cmd_sed)
+    compile_result = compile_ok(fname_path)
+    if compile_result:
+        os.remove(fname_path + ".bkp")
+    else:
+        os.rename(fname_path + ".bkp", fname_path)
+    return compile_result
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
         context = {
             'fix_unused_import': True,
             'fix_unused_var': True,
-            'fix_autopep8': False,#By default False because is not complete
+            'fix_autopep8': True,
+            'fix_trailing_whitespace': True,
+            'remove_linenos_pylint_w0104': True,
+            'remove_linenos_pylint_w0404': True,
+            
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -159,11 +190,6 @@ def fix_custom_lint(dir_path, context=None):
                     if fname_woext not in ['__init__', '__openerp__', '__terp__']:
                         if context.get('fix_unused_var'):
                             run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
-
-                            cmd = ["pylint", "-d", "all", "-e", "W0104", "-r", "n", '--msg-template="{line}"', fname_path]
-                            pylint_out = run_output(cmd)
-                            linenos_to_delete = [int(s) for s in pylint_out.split() if s.isdigit()]
-                            delete_linenos(fname_path, linenos_to_delete)
 
                             with open(fname_path) as fin:
                                 fdata = fin.read()
@@ -192,14 +218,34 @@ def fix_custom_lint(dir_path, context=None):
                                 fdata = fin.write( fdata )
 
                         if context.get('fix_autopep8'):
-                            open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
-                            #run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])#max-line-length make strange out. And not fix all error.
-                            run(["autopep8", "-i", "--ignore", "E501,E128", fname_path])#Ignore fix max-line-length and continuation line under-indented for visual indent. Make many changes.
+                            open(fname_path + '.bkp', "w").write( 
+                                 open(fname_path, "r").read() )
+                            #Ignore fix max-line-length and continuation line
+                            #  under-indented for visual indent. 
+                            #  We have mute this errors in our pylint
+                            run(["autopep8", "-i", "--ignore", "E501,E128", fname_path])
                             compile_ok_result = compile_ok(fname_path)
                             if compile_ok_result:
                                 os.remove(fname_path + ".bkp")
                             else:
                                 os.rename(fname_path + ".bkp", fname_path)
+
+                        error_list = []
+                        #Statement seems to have no effect
+                        if context.get('remove_linenos_pylint_w0104'):
+                            error_list.append('w0104')
+                        #Reimport
+                        if context.get('remove_linenos_pylint_w0404'):
+                            error_list.append('w0404')
+                        if error_list:
+                            linenos_to_delete = get_pylint_error_linenos(\
+                                fname_path, error_list)
+                            delete_linenos(fname_path, linenos_to_delete)
+
+                    if context.get('fix_trailing_whitespace'):
+                        remove_trailing_whitespace(fname_path)
+
+                    #TODO: Change <> by !=
 
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
