@@ -193,7 +193,8 @@ def fix_custom_lint(dir_path, context=None):
 
                         if context.get('fix_autopep8'):
                             open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
-                            run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])
+                            #run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])#max-line-length make strange out. And not fix all error.
+                            run(["autopep8", "-i", "--ignore", "E501,E128", fname_path])#Ignore fix max-line-length and continuation line under-indented for visual indent. Make many changes.
                             compile_ok_result = compile_ok(fname_path)
                             if compile_ok_result:
                                 os.remove(fname_path + ".bkp")
@@ -214,7 +215,8 @@ def main():
         else:
             fix_custom_lint(sys.argv[1], context={sys.argv[2]: True})
     else:
-        logging.warning("First param should be directoy path to check")
+        #logging.warning("First param should be directoy path to check")
+        print "First param should be directoy path to check"#ToDo: Add warning
 
 if __name__ == '__main__':
     exit(main())
