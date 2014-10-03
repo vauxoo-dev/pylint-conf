@@ -123,6 +123,7 @@ def compile_ok(fname_path):
     return False
 
 def delete_linenos(fname_path, linenos_list):
+    compile_result = None
     if linenos_list:
         linenos_to_delete_cmd = 'd;'.join( \
             [str(item) for item in linenos_list] ) + 'd'
