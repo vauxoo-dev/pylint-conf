@@ -149,52 +149,55 @@ def fix_custom_lint(dir_path, context=None):
               #if 'account_move_line_address' in dirname and filename == 'account_move_line.py':
               #if 'payroll_amount_residual' in dirname and filename == 'hr_payslip.py':
                 fname_woext, fext = os.path.splitext(filename)
-                if fext == '.py' and fname_woext != '__init__' \
-                    and fname_woext != '__openerp__'\
-                    and fname_woext != '__terp__':
-                    fname_path = os.path.join(dirname, filename)
-                    if context.get('fix_unused_var'):
-                        run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
+                fname_path = os.path.join(dirname, filename)
+                if fext == '.py':
+                    compile_ok_result = compile_ok(fname_path)
+                    if not compile_ok_result:
+                        print "*"*20,"syntaxis error in file",fname_path#TODO: Make a log warning
+                        continue
+                    if fname_woext not in ['__init__', '__openerp__', '__terp__']:
+                        if context.get('fix_unused_var'):
+                            run(["autoflake", "--remove-unused-variables", "-ri", fname_path])
 
-                        cmd = ["pylint", "-d", "all", "-e", "W0104", "-r", "n", '--msg-template="{line}"', fname_path]
-                        pylint_out = run_output(cmd)
-                        linenos_to_delete = [int(s) for s in pylint_out.split() if s.isdigit()]
-                        delete_linenos(fname_path, linenos_to_delete)
+                            cmd = ["pylint", "-d", "all", "-e", "W0104", "-r", "n", '--msg-template="{line}"', fname_path]
+                            pylint_out = run_output(cmd)
+                            linenos_to_delete = [int(s) for s in pylint_out.split() if s.isdigit()]
+                            delete_linenos(fname_path, linenos_to_delete)
 
-                        with open(fname_path) as fin:
-                            fdata = fin.read()
-                        lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata, \
-                            ['fields_get', 'search', 'browse', 'get', 'LocalService',\
-                                'ServerProxy', 'get_pool'])
-                        linenos_to_delete = []
-                        for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
-                            lineno = line_pool_get_wo_assigned.get('lineno')
-                            linenos_to_delete.append(lineno)
-                        delete_linenos(fname_path, linenos_to_delete)
+                            with open(fname_path) as fin:
+                                fdata = fin.read()
+                            lines_pool_get_wo_assigned = pool_get_wo_assigned(fdata, \
+                                ['fields_get', 'search', 'browse', 'get', 'LocalService',\
+                                    'ServerProxy', 'get_pool'])
+                            linenos_to_delete = []
+                            for line_pool_get_wo_assigned in lines_pool_get_wo_assigned:
+                                lineno = line_pool_get_wo_assigned.get('lineno')
+                                linenos_to_delete.append(lineno)
+                            delete_linenos(fname_path, linenos_to_delete)
 
-                    if context.get('fix_unused_import'):
-                        run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
-                        with open(fname_path) as fin:
-                            fdata = fin.read()
-                        #TODO: IMP with ast library
-                        if "from openerp.osv import fields\nfrom openerp.osv import osv" in fdata:
-                            fdata = fdata.replace("from openerp.osv import fields\nfrom openerp.osv import osv",
-                                "from openerp.osv import osv, fields")
-                        if "from openerp.osv import osv\nfrom openerp.osv import fields" in fdata:
-                            fdata = fdata.replace("from openerp.osv import osv\nfrom openerp.osv import fields",
-                                "from openerp.osv import osv, fields")
-                        #TODO: Only re-save it if was modify
-                        with open(fname_path, "w") as fin:
-                            fdata = fin.write( fdata )
+                        if context.get('fix_unused_import'):
+                            run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
+                            with open(fname_path) as fin:
+                                fdata = fin.read()
+                            #TODO: IMP with ast library
+                            if "from openerp.osv import fields\nfrom openerp.osv import osv" in fdata:
+                                fdata = fdata.replace("from openerp.osv import fields\nfrom openerp.osv import osv",
+                                    "from openerp.osv import osv, fields")
+                            if "from openerp.osv import osv\nfrom openerp.osv import fields" in fdata:
+                                fdata = fdata.replace("from openerp.osv import osv\nfrom openerp.osv import fields",
+                                    "from openerp.osv import osv, fields")
+                            #TODO: Only re-save it if was modify
+                            with open(fname_path, "w") as fin:
+                                fdata = fin.write( fdata )
 
-                    if context.get('fix_autopep8'):
-                        open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
-                        run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])
-                        compile_ok_result = compile_ok(fname_path)
-                        if compile_ok_result:
-                            os.remove(fname_path + ".bkp")
-                        else:
-                            os.rename(fname_path + ".bkp", fname_path)
+                        if context.get('fix_autopep8'):
+                            open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
+                            run(["autopep8", "--max-line-length", "79", "-i", "--aggressive", "--aggressive", fname_path])
+                            compile_ok_result = compile_ok(fname_path)
+                            if compile_ok_result:
+                                os.remove(fname_path + ".bkp")
+                            else:
+                                os.rename(fname_path + ".bkp", fname_path)
 
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
