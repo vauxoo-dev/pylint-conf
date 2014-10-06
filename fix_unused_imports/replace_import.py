@@ -234,7 +234,7 @@ def fix_custom_lint(dir_path, context=None):
             'fix_trailing_whitespace': True,
             'remove_linenos_pylint_w0104': True,
             'remove_linenos_pylint_w0404': True,
-            'fix_relative_imports': True,
+            'fix_relative_import': True,
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -306,7 +306,7 @@ def fix_custom_lint(dir_path, context=None):
                     if context.get('fix_trailing_whitespace'):
                         remove_trailing_whitespace(fname_path)
 
-                    if context.get('fix_relative_imports'):
+                    if context.get('fix_relative_import'):
                         fix_relative_import(fname_path)
                     #TODO: Change <> by !=
 
