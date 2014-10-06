@@ -12,6 +12,7 @@ This script delete remove all unused imports and remove all unused variable
 This script required:
 pip install autoflake
 pip install pylint
+pip install 2to3
 sed
 
 """
@@ -36,7 +37,10 @@ def run(l, env=None):
             rc = os.spawnvp(os.P_WAIT, tmp[0], tmp)
     #log("run", rc=rc)
     return rc
-
+"""
+def run_cmd_pyfile_bkp(l, env=None):
+    run(l, env=env)
+"""
 def run_output(l, cwd=None):
     #log("run_output",l)
     #print "run output:", ' '.join( l ), "into", cwd
@@ -136,7 +140,7 @@ def delete_linenos(fname_path, linenos_list):
         else:
             os.rename(fname_path + ".bkp", fname_path)
     return compile_result
-
+'''
 def pack_local_ok(packname, path):
     if os.path.isfile(path):
         dirname = os.path.dirname(path)
@@ -183,7 +187,7 @@ def search_relative_imports(path):
             file_change_line(path, old_new_import, node.lineno)
         else:
             continue
-
+'''
 def get_pylint_error_linenos(fname_path, error_list):
     if isinstance(error_list, str) or isinstance(error_list, basestring):
         error_list = error_list and [error_list] or []
@@ -202,6 +206,18 @@ def remove_trailing_whitespace(fname_path):
     compile_result = None
     cmd_sed = ["sed", "-i.bkp", 's/[ \t]*$//', fname_path]
     run(cmd_sed)
+    compile_result = compile_ok(fname_path)
+    if compile_result:
+        os.remove(fname_path + ".bkp")
+    else:
+        os.rename(fname_path + ".bkp", fname_path)
+    return compile_result
+
+def fix_relative_import(fname_path):
+    compile_result = None
+    open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
+    cmd = ["2to3", "--no-diffs", "-wf", "import", fname_path]
+    run(cmd)
     compile_result = compile_ok(fname_path)
     if compile_result:
         os.remove(fname_path + ".bkp")
@@ -291,13 +307,7 @@ def fix_custom_lint(dir_path, context=None):
                         remove_trailing_whitespace(fname_path)
 
                     if context.get('fix_relative_imports'):
-                        open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
-                        search_relative_imports(fname_path)
-                        compile_ok_result = compile_ok(fname_path)
-                        if compile_ok_result:
-                            os.remove(fname_path + ".bkp")
-                        else:
-                            os.rename(fname_path + ".bkp", fname_path)
+                        fix_relative_import(fname_path)
                     #TODO: Change <> by !=
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
