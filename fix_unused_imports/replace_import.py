@@ -12,6 +12,7 @@ This script delete remove all unused imports and remove all unused variable
 This script required:
 pip install autoflake
 pip install pylint
+pip install 2to3
 sed
 
 """
@@ -36,7 +37,10 @@ def run(l, env=None):
             rc = os.spawnvp(os.P_WAIT, tmp[0], tmp)
     #log("run", rc=rc)
     return rc
-
+"""
+def run_cmd_pyfile_bkp(l, env=None):
+    run(l, env=env)
+"""
 def run_output(l, cwd=None):
     #log("run_output",l)
     #print "run output:", ' '.join( l ), "into", cwd
@@ -136,7 +140,54 @@ def delete_linenos(fname_path, linenos_list):
         else:
             os.rename(fname_path + ".bkp", fname_path)
     return compile_result
+'''
+def pack_local_ok(packname, path):
+    if os.path.isfile(path):
+        dirname = os.path.dirname(path)
+    elif os.path.isdir(path):
+        dirname = path
+    else:
+        raise "This path is not a file or directory"
+    if os.path.isfile( os.path.join(dirname, packname + '.py') )\
+            or os.path.isfile( os.path.join(dirname, packname, '__init__.py')):
+        return True
+    return False
 
+def get_pack_from_astnode(ast_node):
+    pack_names = []
+    if isinstance(ast_node, ast.Import):
+        pack_names.extend([pack.name for pack in multi_getattr(ast_node, "names")])
+    elif isinstance(ast_node, ast.ImportFrom):
+        pack_from_import = multi_getattr(ast_node, "module")
+        if pack_from_import:
+            pack_names.append(pack_from_import)
+    return pack_names
+
+def get_convert_import_relative_astnode(pack_names_list):
+    old_import = "import {}".format(", ".join(pack_names_list))
+    new_import = "from . import {}".format(", ".join(pack_names_list))
+    return [old_import, new_import]
+
+def file_change_line(fname, old_new_import, lineno):
+    run(["sed", "-i.bkp", "-e",str(lineno) + "s/"+ old_new_import[0] + "/" + old_new_import[1] + "/", fname])
+
+def search_relative_imports(path):
+    """
+    This method is used to search relative imports in py files.
+
+    :param paths: Path of py files to check relative imports.
+    """
+    with open(path) as fin:
+        parsed = ast.parse(fin.read())
+    for node in ast.walk(parsed):
+        pack_names = get_pack_from_astnode(node)
+        pack_names_local_ok = [pack_local_ok(pack_name, path) for pack_name in pack_names]
+        if any(pack_names_local_ok):
+            old_new_import = get_convert_import_relative_astnode(pack_names)
+            file_change_line(path, old_new_import, node.lineno)
+        else:
+            continue
+'''
 def get_pylint_error_linenos(fname_path, error_list):
     if isinstance(error_list, str) or isinstance(error_list, basestring):
         error_list = error_list and [error_list] or []
@@ -151,12 +202,22 @@ def get_pylint_error_linenos(fname_path, error_list):
         linenos = [int(s) for s in pylint_out.split() if s.isdigit()]
     return linenos
 
-    
-
 def remove_trailing_whitespace(fname_path):
     compile_result = None
     cmd_sed = ["sed", "-i.bkp", 's/[ \t]*$//', fname_path]
     run(cmd_sed)
+    compile_result = compile_ok(fname_path)
+    if compile_result:
+        os.remove(fname_path + ".bkp")
+    else:
+        os.rename(fname_path + ".bkp", fname_path)
+    return compile_result
+
+def fix_relative_import(fname_path):
+    compile_result = None
+    open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
+    cmd = ["2to3", "--no-diffs", "-wf", "import", fname_path]
+    run(cmd)
     compile_result = compile_ok(fname_path)
     if compile_result:
         os.remove(fname_path + ".bkp")
@@ -173,7 +234,7 @@ def fix_custom_lint(dir_path, context=None):
             'fix_trailing_whitespace': True,
             'remove_linenos_pylint_w0104': True,
             'remove_linenos_pylint_w0404': True,
-            
+            'fix_relative_import': True,
         }
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
@@ -245,8 +306,9 @@ def fix_custom_lint(dir_path, context=None):
                     if context.get('fix_trailing_whitespace'):
                         remove_trailing_whitespace(fname_path)
 
+                    if context.get('fix_relative_import'):
+                        fix_relative_import(fname_path)
                     #TODO: Change <> by !=
-
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
     fix_custom_lint(dir_path, {'fix_unused_import': True})
