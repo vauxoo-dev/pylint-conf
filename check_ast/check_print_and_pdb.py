@@ -5,7 +5,7 @@ import os
 import logging
 
 """
-This script check py file for no get "print" or "pdb" sentence.
+This script check py file to get "print" or "pdb" sentence.
 """
 
 def check_custom_lint(dir_path):
