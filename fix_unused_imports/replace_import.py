@@ -215,14 +215,15 @@ def remove_trailing_whitespace(fname_path):
 
 def fix_relative_import(fname_path):
     compile_result = None
-    open(fname_path + '.bkp', "w").write( open(fname_path, "r").read() )
+    fname_path_bkp = fname_path + '.bak'
     cmd = ["2to3", "--no-diffs", "-wf", "import", fname_path]
     run(cmd)
     compile_result = compile_ok(fname_path)
-    if compile_result:
-        os.remove(fname_path + ".bkp")
-    else:
-        os.rename(fname_path + ".bkp", fname_path)
+    if os.path.isfile(fname_path_bkp):
+        if compile_result:
+            os.remove(fname_path + ".bak")
+        else:
+            os.rename(fname_path + ".bak", fname_path)
     return compile_result
 
 def fix_custom_lint(dir_path, context=None):
