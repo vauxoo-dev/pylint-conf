@@ -226,24 +226,32 @@ def fix_relative_import(fname_path):
             os.rename(fname_path + ".bak", fname_path)
     return compile_result
 
+ALL_FIXES = [
+    'fix_unused_import',
+    'fix_unused_var',
+    'fix_autopep8',
+    'fix_trailing_whitespace',
+    'remove_linenos_pylint_w0104',
+    'remove_linenos_pylint_w0404',
+    'fix_relative_import',
+]
+
 def fix_custom_lint(dir_path, context=None):
     if context is None:
-        context = {
-            'fix_unused_import': True,
-            'fix_unused_var': True,
-            'fix_autopep8': True,
-            'fix_trailing_whitespace': True,
-            'remove_linenos_pylint_w0104': True,
-            'remove_linenos_pylint_w0404': True,
-            'fix_relative_import': True,
-        }
+        context = dict( [(fix, True) for fix in ALL_FIXES])
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
               #if 'hr_expense_replenishment/' in dirname and filename == 'hr_expense.py':
               #if 'account_move_line_address' in dirname and filename == 'account_move_line.py':
               #if 'payroll_amount_residual' in dirname and filename == 'hr_payslip.py':
+              #if ('account_invoice_tax' in dirname and filename=='account_invoice_tax.py') or \
+              #   ('account_voucher_tax' in dirname and filename=='account_voucher.py') or \
+              #   ('project_conf' in dirname and filename=='project.py') or \
+              #   ('user_story' in dirname and filename=='user_story_report_mako.py') or \
+              #   ('user_story' in dirname and filename=='test_user_story.py'):
                 fname_woext, fext = os.path.splitext(filename)
                 fname_path = os.path.join(dirname, filename)
+                #print "fname_path",fname_path
                 if fext == '.py':
                     compile_ok_result = compile_ok(fname_path)
                     if not compile_ok_result:
@@ -317,10 +325,16 @@ def fix_autoflake_remove_all_unused_imports(dir_path):
 def main():
     #TODO: Use option "--" and "-"
     if len( sys.argv ) == 2 and os.path.isdir(sys.argv[1]):
-        fix_autoflake_remove_all_unused_imports(sys.argv[1])
+        #fix_autoflake_remove_all_unused_imports(sys.argv[1])
+        fix_custom_lint(sys.argv[1], context=None)
     elif len( sys.argv ) == 3 and os.path.isdir(sys.argv[1]):
         if sys.argv[2] == 'all':
             fix_custom_lint(sys.argv[1], context=None)
+        elif sys.argv[2] == 'all_commit':
+            for fix in ALL_FIXES:
+                fix_custom_lint(sys.argv[1], context={fix: True})
+                raw_input("[FIX] %s completed, please go to '%s' folder in other terminal"\
+                        " and commit here and press any key to continue"%(fix, sys.argv[1]))
         else:
             fix_custom_lint(sys.argv[1], context={sys.argv[2]: True})
     else:
