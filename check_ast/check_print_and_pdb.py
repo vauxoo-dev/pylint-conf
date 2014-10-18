@@ -6,12 +6,13 @@ import logging
 
 """
 This script check py file to get "print" or "pdb" sentence.
-You can change the sentence "print" by sys.stdout.write()
-More info here:
-http://stackoverflow.com/questions/5574702/how-to-print-to-stderr-in-python
-Fix changing " print 'spam' " by
-import sys
-sys.stdout.write('spam\n')
+If you need print: 
+  you can change the sentence "print" by sys.stdout.write()
+  More info here:
+    http://stackoverflow.com/questions/5574702/how-to-print-to-stderr-in-python
+  Fix changing " print 'spam' " by
+    import sys
+    sys.stdout.write('spam\n')
 """
 
 def check_custom_lint(dir_path):
