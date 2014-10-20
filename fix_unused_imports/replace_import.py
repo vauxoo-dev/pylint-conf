@@ -234,7 +234,22 @@ ALL_FIXES = [
     'remove_linenos_pylint_w0104',
     'remove_linenos_pylint_w0404',
     'fix_relative_import',
+    'fix_sort_import',
 ]
+
+def fix_sort_import(fname_path):
+    compile_result = None
+    fname_path_bkp = fname_path + '.bak'
+    cmd = ["isort", fname_path]
+    run(cmd)
+    compile_result = compile_ok(fname_path)
+    if os.path.isfile(fname_path_bkp):
+        if compile_result:
+            os.remove(fname_path + ".bak")
+        else:
+            os.rename(fname_path + ".bak", fname_path)
+    return compile_result
+
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
@@ -317,6 +332,9 @@ def fix_custom_lint(dir_path, context=None):
 
                     if context.get('fix_relative_import'):
                         fix_relative_import(fname_path)
+
+                    if context.get('fix_sort_import'):
+                        fix_sort_import(fname_path)
                     #TODO: Change <> by !=
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
