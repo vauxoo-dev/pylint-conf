@@ -188,6 +188,84 @@ def search_relative_imports(path):
         else:
             continue
 '''
+
+def get_pack_from_astnode(ast_node):
+    pack_names = []
+    if isinstance(ast_node, ast.Import):
+        pack_names.extend([pack.name for pack in multi_getattr(ast_node, "names")])
+    elif isinstance(ast_node, ast.ImportFrom):
+        pack_from_import = multi_getattr(ast_node, "module")
+        if pack_from_import:
+            pack_names.append(pack_from_import)
+    return pack_names
+
+def fix_odoo_import(path):
+    '''
+    
+    '''
+
+def DEPRECATED2_fix_odoo_import(path):
+    """
+    2to3 script there is a fix imports
+    Then if you apply next patch will fix import odoo pack
+    /opt/local/Library/Frameworks/Python.framework/Versions/2.7/lib/python2.7/lib2to3/fixes/fix_imports.py
+
+    ODOO_MAPPING = {
+       # odoo replace
+       'osv': 'openerp.osv',
+       'tools': 'openerp.tools',
+       'decimal_precision': 'openerp.addons.decimal_precision',
+       'report_webkit': 'openerp.addons.report_webkit',
+       'web': 'openerp.addons.web',
+       'report_sxw': 'openerp.report.report_sxw',
+       'tools.translate': 'openerp.tools.translate',
+    }
+    MAPPING = ODOO_MAPPING # Comment this line to work from original way
+
+    Later execute:
+    2to3 --fix=imports --no-diffs -w addons-path
+    """
+
+
+
+def DEPRECATED_fix_odoo_import(path):
+    """
+    DEPRECATED... This method is used to fix import way from addons of odoo
+        "import report_sxw" -> "from openerp.report import report_sxw"
+        "import decimal_precision" -> "from openerp.addons import decimal_precision"
+        "import report_webkit" -> "from openerp.addons import report_webkit"
+        "import osv" -> "from openerp import osv"
+        "import tools.translate" -> "from openerp import tools.translate"
+    :param paths: Path of py files to check.
+    """
+    replace_dict = {
+        "openerp": ["osv", "tools.translate"],
+        "openerp.addons": ["decimal_precision", "report_webkit", "web"],
+        "openerp.report": ["report_sxw"],
+    }
+
+    with open(path) as fin:
+        parsed = ast.parse(fin.read())
+    for node in ast.walk(parsed):
+        pack_names = get_pack_from_astnode(node)
+        if pack_names:
+            #print "pack_names",pack_names
+            for prefix in replace_dict.keys():
+                for pack_to_replace in replace_dict[prefix]:
+                    if pack_to_replace in pack_names:
+                        print "pack_to_replace", pack_to_replace,
+                        print "node.lineno", node.lineno,
+                        print "path", path
+                        #import pdb; pdb.set_trace()
+                        #import codegen
+                        #print codegen.to_source(node)
+        #pack_names_local_ok = [pack_local_ok(pack_name, path) for pack_name in pack_names]
+        #if any(pack_names_local_ok):
+            #old_new_import = get_convert_import_relative_astnode(pack_names)
+            #file_change_line(path, old_new_import, node.lineno)
+        #else:
+            #continue
+
 def get_pylint_error_linenos(fname_path, error_list):
     if isinstance(error_list, str) or isinstance(error_list, basestring):
         error_list = error_list and [error_list] or []
@@ -234,7 +312,10 @@ ALL_FIXES = [
     'remove_linenos_pylint_w0104',
     'remove_linenos_pylint_w0404',
     'fix_relative_import',
+    'fix_odoo_import',
 ]
+
+
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
@@ -317,6 +398,9 @@ def fix_custom_lint(dir_path, context=None):
 
                     if context.get('fix_relative_import'):
                         fix_relative_import(fname_path)
+
+                    if context.get('fix_odoo_import'):
+                        fix_odoo_import(fname_path)
                     #TODO: Change <> by !=
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
