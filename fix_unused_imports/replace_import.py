@@ -291,13 +291,6 @@ def fix_custom_lint(dir_path, context=None):
                             run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
                             with open(fname_path) as fin:
                                 fdata = fin.read()
-                            #TODO: IMP with ast library
-                            if "from openerp.osv import fields\nfrom openerp.osv import osv" in fdata:
-                                fdata = fdata.replace("from openerp.osv import fields\nfrom openerp.osv import osv",
-                                    "from openerp.osv import osv, fields")
-                            if "from openerp.osv import osv\nfrom openerp.osv import fields" in fdata:
-                                fdata = fdata.replace("from openerp.osv import osv\nfrom openerp.osv import fields",
-                                    "from openerp.osv import osv, fields")
                             #TODO: Only re-save it if was modify
                             with open(fname_path, "w") as fin:
                                 fdata = fin.write( fdata )
