@@ -13,6 +13,7 @@ This script required:
 pip install autoflake
 pip install pylint
 pip install 2to3
+pip install isort
 sed
 
 """
