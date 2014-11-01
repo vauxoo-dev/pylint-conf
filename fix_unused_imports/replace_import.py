@@ -5,7 +5,11 @@ import ast
 import subprocess
 
 """
+Run this script with
+replace_import.py PATH all
+
 @sys.argv[1]: path of dirname with all python packages.
+@sys.argv[2]: test to run
 
 This script delete remove all unused imports and remove all unused variable
 
