@@ -24,7 +24,7 @@ python replace_import.py PATH_YOUR_MODULE all
 @sys.argv[2]: test to run. Use "all" for all fixes or a element of ALL_FIXES
 
 This script required:
-sudo pip install autoflake pylint isort 3to2
+sudo pip install autoflake pylint isort 3to2 autopep8
 sudo apt-get install sed
 """
 
