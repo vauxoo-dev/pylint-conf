@@ -4,6 +4,17 @@ import sys
 import ast
 import subprocess
 
+ALL_FIXES = [
+    'fix_unused_import',
+    'fix_unused_var',
+    'fix_autopep8',
+    'fix_trailing_whitespace',
+    'remove_linenos_pylint_w0104',
+    'remove_linenos_pylint_w0404',
+    'fix_relative_import',
+    'fix_sort_import',
+]
+
 """
 Run this script with
 replace_import.py PATH_YOUR_MODULE all
@@ -230,17 +241,6 @@ def fix_relative_import(fname_path):
         else:
             os.rename(fname_path + ".bak", fname_path)
     return compile_result
-
-ALL_FIXES = [
-    'fix_unused_import',
-    'fix_unused_var',
-    'fix_autopep8',
-    'fix_trailing_whitespace',
-    'remove_linenos_pylint_w0104',
-    'remove_linenos_pylint_w0404',
-    'fix_relative_import',
-    'fix_sort_import',
-]
 
 def fix_sort_import(fname_path):
     compile_result = None
