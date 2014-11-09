@@ -18,7 +18,7 @@ ALL_FIXES = [
 """
 This is the script to fix all cases: ALL_FIXES
 Run this script with
-replace_import.py PATH_YOUR_MODULE all
+python replace_import.py PATH_YOUR_MODULE all
 
 @sys.argv[1]: path of dirname with all python packages.
 @sys.argv[2]: test to run. Use "all" for all fixes or a element of ALL_FIXES
