@@ -16,13 +16,12 @@ ALL_FIXES = [
 ]
 
 """
+This is the script to fix all cases: ALL_FIXES
 Run this script with
 replace_import.py PATH_YOUR_MODULE all
 
 @sys.argv[1]: path of dirname with all python packages.
-@sys.argv[2]: test to run. Use "all" for all fixes.
-
-This script delete remove all unused imports and remove all unused variable
+@sys.argv[2]: test to run. Use "all" for all fixes or a element of ALL_FIXES
 
 This script required:
 pip install autoflake
