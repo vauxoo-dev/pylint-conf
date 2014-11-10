@@ -328,7 +328,8 @@ def fix_custom_lint(dir_path, context=None):
 
                     if context.get('fix_sort_import'):
                         fix_sort_import(fname_path)
-                    #TODO: Change <> by !=
+                    # TODO: Change <> by !=
+                    #       find . -type f -name "*.py" -exec sed -i 's/<>/\!\=/g' {} \;
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
     fix_custom_lint(dir_path, {'fix_unused_import': True})
