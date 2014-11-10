@@ -9,8 +9,8 @@ ALL_FIXES = [
     'fix_unused_var',
     'fix_autopep8',
     'fix_trailing_whitespace',
-    'remove_linenos_pylint_w0104',
-    'remove_linenos_pylint_w0404',
+    'remove_linenos_pylint_w0104', #  Statement seems to have no effect
+    'remove_linenos_pylint_w0404', #  reimported
     'fix_relative_import',
     'fix_sort_import',
 ]
@@ -256,6 +256,7 @@ def fix_custom_lint(dir_path, context=None):
         context = dict( [(fix, True) for fix in ALL_FIXES])
     for dirname, dirnames, filenames in os.walk(dir_path):
             for filename in filenames:
+              #if '__unported__' in dirname: continue
               #if 'hr_expense_replenishment/' in dirname and filename == 'hr_expense.py':
               #if 'account_move_line_address' in dirname and filename == 'account_move_line.py':
               #if 'payroll_amount_residual' in dirname and filename == 'hr_payslip.py':
@@ -287,38 +288,41 @@ def fix_custom_lint(dir_path, context=None):
                                 linenos_to_delete.append(lineno)
                             delete_linenos(fname_path, linenos_to_delete)
 
-                        if context.get('fix_unused_import'):
-                            run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
-                            with open(fname_path) as fin:
-                                fdata = fin.read()
-                            #TODO: Only re-save it if was modify
-                            with open(fname_path, "w") as fin:
-                                fdata = fin.write( fdata )
+                    if context.get('fix_unused_import'):
+                        run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
+                        with open(fname_path) as fin:
+                            fdata = fin.read()
+                        #TODO: Only re-save it if was modify
+                        with open(fname_path, "w") as fin:
+                            fdata = fin.write( fdata )
 
-                        if context.get('fix_autopep8'):
-                            open(fname_path + '.bkp', "w").write( 
-                                 open(fname_path, "r").read() )
-                            #Ignore fix max-line-length and continuation line
-                            #  under-indented for visual indent. 
-                            #  We have mute this errors in our pylint
-                            run(["autopep8", "-i", "--ignore", "E501,E128", fname_path])
-                            compile_ok_result = compile_ok(fname_path)
-                            if compile_ok_result:
-                                os.remove(fname_path + ".bkp")
-                            else:
-                                os.rename(fname_path + ".bkp", fname_path)
+                    error_list = []
+                    #Statement seems to have no effect
+                    if context.get('remove_linenos_pylint_w0104') and\
+                        fname_woext != '__openerp__':
+                        error_list.append('w0104')
+                    #Reimport
+                    if context.get('remove_linenos_pylint_w0404'):
+                        error_list.append('w0404')
+                    if error_list:
+                        linenos_to_delete = get_pylint_error_linenos(\
+                            fname_path, error_list)
+                        delete_linenos(fname_path, linenos_to_delete)
 
-                        error_list = []
-                        #Statement seems to have no effect
-                        if context.get('remove_linenos_pylint_w0104'):
-                            error_list.append('w0104')
-                        #Reimport
-                        if context.get('remove_linenos_pylint_w0404'):
-                            error_list.append('w0404')
-                        if error_list:
-                            linenos_to_delete = get_pylint_error_linenos(\
-                                fname_path, error_list)
-                            delete_linenos(fname_path, linenos_to_delete)
+
+                    if context.get('fix_autopep8'):
+                        open(fname_path + '.bkp', "w").write(
+                             open(fname_path, "r").read() )
+                        #Ignore fix max-line-length and continuation line
+                        #  under-indented for visual indent. 
+                        #  We have mute this errors in our pylint
+                        run(["autopep8", "-i", "--ignore", "E501,E128", fname_path])
+                        compile_ok_result = compile_ok(fname_path)
+                        if compile_ok_result:
+                            os.remove(fname_path + ".bkp")
+                        else:
+                            os.rename(fname_path + ".bkp", fname_path)
+
 
                     if context.get('fix_trailing_whitespace'):
                         remove_trailing_whitespace(fname_path)
