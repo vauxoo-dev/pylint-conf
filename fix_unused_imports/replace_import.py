@@ -288,13 +288,13 @@ def fix_custom_lint(dir_path, context=None):
                                 linenos_to_delete.append(lineno)
                             delete_linenos(fname_path, linenos_to_delete)
 
-                    if context.get('fix_unused_import'):
-                        run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
-                        with open(fname_path) as fin:
-                            fdata = fin.read()
-                        #TODO: Only re-save it if was modify
-                        with open(fname_path, "w") as fin:
-                            fdata = fin.write( fdata )
+                        if context.get('fix_unused_import'):
+                            run(["autoflake", "--remove-all-unused-imports", "-ri", fname_path])
+                            #with open(fname_path) as fin:
+                            #    fdata = fin.read()
+                            #TODO: Only re-save it if was modify
+                            #with open(fname_path, "w") as fin:
+                            #    fin.write( fdata )
 
                     error_list = []
                     #Statement seems to have no effect
