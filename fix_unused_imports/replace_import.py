@@ -16,6 +16,7 @@ ALL_FIXES = [
     'fix_relative_import',
     'fix_sort_import',
     'snake_case2CamelCase',
+    'rm_dummy_class_invoke',
 ]
 
 """
@@ -256,6 +257,29 @@ def fix_sort_import(fname_path):
 def replace_str_line(fname, old_str, new_str, lineno):
      run(["sed", "-i.bkp", "-e", str(lineno) + "s/"+ old_str + "/" + new_str + "/", fname])
 
+def rm_dummy_class_invoke(fname_path):
+    """
+    class eg1:
+        pass
+    eg1()  # without assing to a variable without parameters-
+    After this script you will have your code:
+    class eg1:
+        pass
+    Without eg1()
+    """
+    class_names = []
+    linenos_to_delete = []
+    with open(fname_path) as fin:
+        parsed = ast.parse(fin.read())
+        for node in ast.walk(parsed):
+            if isinstance(node, ast.ClassDef):
+                class_names.append(node.name)
+            if isinstance(node, ast.Call) and hasattr(node.func, 'id'):
+                if node.func.id in class_names \
+                    and len(node.args) == 0 \
+                    and node.col_offset == 0:
+                    linenos_to_delete.append(node.lineno)
+    delete_linenos(fname_path, linenos_to_delete)
 
 def snake_case2CamelCase(fname_path):
     with open(fname_path) as fin:
@@ -367,6 +391,9 @@ def fix_custom_lint(dir_path, context=None):
                         snake_case2CamelCase(fname_path)
                     # TODO: Change <> by !=
                     #       find . -type f -name "*.py" -exec sed -i 's/<>/\!\=/g' {} \;
+
+                    if context.get('rm_dummy_class_invoke'):
+                        rm_dummy_class_invoke(fname_path)
 
 def fix_autoflake_remove_all_unused_imports(dir_path):
     fix_custom_lint(dir_path, {'fix_unused_import': True})
