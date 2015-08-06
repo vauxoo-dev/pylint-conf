@@ -15,8 +15,8 @@ ALL_FIXES = [
     'remove_linenos_pylint_w0404', #  reimported
     'fix_relative_import',
     'fix_sort_import',
-    'snake_case2CamelCase',
     'rm_dummy_class_invoke',
+    'snake_case2CamelCase',
 ]
 
 """
