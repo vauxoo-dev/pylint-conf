@@ -255,7 +255,8 @@ def fix_sort_import(fname_path):
     return compile_result
 
 def replace_str_line(fname, old_str, new_str, lineno):
-     run(["sed", "-i.bkp", "-e", str(lineno) + "s/"+ old_str + "/" + new_str + "/", fname])
+    if old_str != new_str:
+        run(["sed", "-i.bkp", "-e", str(lineno) + "s/"+ old_str + "/" + new_str + "/", fname])
 
 def rm_dummy_class_invoke(fname_path):
     """
@@ -289,20 +290,28 @@ def snake_case2CamelCase(fname_path):
                 node_name = node.name
                 node_renamed = inflection.camelize(
                     node.name, uppercase_first_letter=True)
-                if node_name != node_renamed:
-                    replace_str_line(
-                        fname_path, ' ' + node.name, ' ' + node_renamed,
-                        node.lineno)
+                replace_str_line(
+                    fname_path, ' ' + node.name, ' ' + node_renamed,
+                    node.lineno)
             if isinstance(node, ast.Call) and hasattr(node.func, 'id'):
                 if node.func.id == 'super':
+                    # To replace 'super(class_name, ...' by 'super(ClassName, ...'
                     node_name = node.args[0].id
                     node_renamed = inflection.camelize(
                         node.args[0].id, uppercase_first_letter=True)
-                    if node_name != node_renamed:
-                        # TODO: Validate if is a super of a class renamed.
-                        replace_str_line(fname_path, 'super(' + node_name, 'super(' + node_renamed, node.lineno)
-                        # if was used super(\nclass_name)
-                        replace_str_line(fname_path, node_name + ',', node_renamed + ',', node.lineno + 1)
+                    # TODO: Validate if is a super of a class renamed.
+                    replace_str_line(fname_path, 'super(' + node_name, 'super(' + node_renamed, node.lineno)
+                    # if was used super(\nclass_name)
+                    replace_str_line(fname_path, node_name + ',', node_renamed + ',', node.lineno + 1)
+                # To replace 'parser=class_name, ...' by 'parser=ClassName, ...'
+                # TODO: Validate if is a parser of a class renamed.
+                for kw in node.keywords:
+                    if kw.arg ==  'parser':
+                        node_name = kw.value.id
+                        node_renamed = inflection.camelize(
+                            node_name, uppercase_first_letter=True)
+                        lineno = kw.value.lineno
+                        replace_str_line(fname_path, node_name, node_renamed, lineno)
 
 
 def fix_custom_lint(dir_path, context=None):
