@@ -280,7 +280,20 @@ def rm_dummy_class_invoke(fname_path):
                     and len(node.args) == 0 \
                     and node.col_offset == 0:
                     linenos_to_delete.append(node.lineno)
-    delete_linenos(fname_path, linenos_to_delete)
+    if linenos_to_delete:
+        delete_linenos(fname_path, linenos_to_delete)
+        # after of remove lines this should generate a flake8 error of:
+        # E303 - Remove extra blank lines.
+        # W391 - Remove trailing blank lines.
+        open(fname_path + '.bkp', "w").write(
+            open(fname_path, "r").read() )
+        run(["autopep8", "-i", "--select", "E303,W391", fname_path])
+        compile_ok_result = compile_ok(fname_path)
+        if compile_ok_result:
+            os.remove(fname_path + ".bkp")
+        else:
+            os.rename(fname_path + ".bkp", fname_path)
+
 
 def snake_case2CamelCase(fname_path):
     with open(fname_path) as fin:
