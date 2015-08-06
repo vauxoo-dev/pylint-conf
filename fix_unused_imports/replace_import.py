@@ -277,6 +277,8 @@ def snake_case2CamelCase(fname_path):
                     if node_name != node_renamed:
                         # TODO: Validate if is a super of a class renamed.
                         replace_str_line(fname_path, 'super(' + node_name, 'super(' + node_renamed, node.lineno)
+                        # if was used super(\nclass_name)
+                        replace_str_line(fname_path, node_name + ',', node_renamed + ',', node.lineno + 1)
 
 
 def fix_custom_lint(dir_path, context=None):
