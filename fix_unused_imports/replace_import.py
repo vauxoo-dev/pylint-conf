@@ -4,6 +4,8 @@ import sys
 import ast
 import subprocess
 
+import inflection
+
 ALL_FIXES = [
     'fix_unused_import',
     'fix_unused_var',
@@ -13,6 +15,7 @@ ALL_FIXES = [
     'remove_linenos_pylint_w0404', #  reimported
     'fix_relative_import',
     'fix_sort_import',
+    'snake_case2CamelCase',
 ]
 
 """
@@ -250,6 +253,20 @@ def fix_sort_import(fname_path):
             os.rename(fname_path + ".bak", fname_path)
     return compile_result
 
+def replace_str_line(fname, old_str, new_str, lineno):
+    run(["sed", "-i.bkp", "-e", str(lineno) + "s/"+ old_str + "/" + new_str + "/", fname])
+
+def snake_case2CamelCase(fname_path):
+    with open(fname_path) as fin:
+        parsed = ast.parse(fin.read())
+        for node in ast.walk(parsed):
+            if isinstance(node, ast.ClassDef):
+                node_renamed = inflection.camelize(
+                    node.name, uppercase_first_letter=True)
+                old_str = ' ' + node.name
+                new_str = ' ' + node_renamed
+                replace_str_line(fname_path, old_str, new_str, node.lineno)
+
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
@@ -332,6 +349,9 @@ def fix_custom_lint(dir_path, context=None):
 
                     if context.get('fix_sort_import'):
                         fix_sort_import(fname_path)
+
+                    if context.get('snake_case2CamelCase'):
+                        snake_case2CamelCase(fname_path)
                     # TODO: Change <> by !=
                     #       find . -type f -name "*.py" -exec sed -i 's/<>/\!\=/g' {} \;
 
