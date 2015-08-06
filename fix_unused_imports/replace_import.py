@@ -85,8 +85,8 @@ def get_node_fc_data(node):
     if isinstance(args, list):
         args_str = ','.join([arg.s for arg in args if hasattr(args, 's')])
     code_data_line = {
-        'lineno': node.lineno,
-        'col_offset': node.col_offset,
+        'lineno': node.lineno if hasattr(node, 'lineno') else None,
+        'col_offset': node.col_offset if hasattr(node, 'col_offset') else None,
         'node': node,
         'code': "{}.{}.{}('{}')".format( multi_getattr(node, "value.func.value.value.id"), \
         multi_getattr(node, "value.func.value.attr"), \
@@ -254,18 +254,29 @@ def fix_sort_import(fname_path):
     return compile_result
 
 def replace_str_line(fname, old_str, new_str, lineno):
-    run(["sed", "-i.bkp", "-e", str(lineno) + "s/"+ old_str + "/" + new_str + "/", fname])
+     run(["sed", "-i.bkp", "-e", str(lineno) + "s/"+ old_str + "/" + new_str + "/", fname])
+
 
 def snake_case2CamelCase(fname_path):
     with open(fname_path) as fin:
         parsed = ast.parse(fin.read())
         for node in ast.walk(parsed):
             if isinstance(node, ast.ClassDef):
+                node_name = node.name
                 node_renamed = inflection.camelize(
                     node.name, uppercase_first_letter=True)
-                old_str = ' ' + node.name
-                new_str = ' ' + node_renamed
-                replace_str_line(fname_path, old_str, new_str, node.lineno)
+                if node_name != node_renamed:
+                    replace_str_line(
+                        fname_path, ' ' + node.name, ' ' + node_renamed,
+                        node.lineno)
+            if isinstance(node, ast.Call) and hasattr(node.func, 'id'):
+                if node.func.id == 'super':
+                    node_name = node.args[0].id
+                    node_renamed = inflection.camelize(
+                        node.args[0].id, uppercase_first_letter=True)
+                    if node_name != node_renamed:
+                        # TODO: Validate if is a super of a class renamed.
+                        replace_str_line(fname_path, 'super(' + node_name, 'super(' + node_renamed, node.lineno)
 
 
 def fix_custom_lint(dir_path, context=None):
