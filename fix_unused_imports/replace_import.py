@@ -310,33 +310,16 @@ def snake_case2CamelCase(fname_path):
                 replace_str_line(
                     fname_path, ' ' + node.name, ' ' + node_renamed,
                     node.lineno)
-            if isinstance(node, ast.Call) and hasattr(node.func, 'id'):
-                if node.func.id == 'super':
-                    # To replace 'super(class_name, ...' by 'super(ClassName, ...'
-                    node_name = node.args[0].id
-                    node_renamed = inflection.camelize(
-                        node.args[0].id, uppercase_first_letter=True)
-                    # TODO: Validate if is a super of a class renamed.
-                    replace_str_line(fname_path, node_name, node_renamed, node.args[0].lineno)
-                
-                # To replace 'parser=class_name, ...' by 'parser=ClassName, ...'
-                # TODO: Validate if is a parser of a class renamed.
-                for kw in node.keywords:
-                    if kw.arg ==  'parser':
-                        node_name = kw.value.id
-                        node_renamed = inflection.camelize(
-                            node_name, uppercase_first_letter=True)
-                        lineno = kw.value.lineno
-                        replace_str_line(fname_path, node_name, node_renamed, lineno)
-                
-            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Name) and node.value.id in class_renamed:
-                # To replace case of 'myparser = class_name' by 'myparser = ClassName'
-                node_name = node.value.id
-                node_renamed = class_renamed[node.value.id]
-                lineno = node.value.lineno
+            if isinstance(node, ast.Name) and node.id in class_renamed:
+                # To replace case where the variable "class_name" is used and change to "ClassName"
+                # Examples:
+                #   {'myparser': class_name...
+                #   method(class_name, parser=class_name)
+                #   class_name()
+                #   parser=class_name
                 replace_str_line(
-                    fname_path, node_name, node_renamed,
-                    lineno)
+                    fname_path, node.id, class_renamed[node.id],
+                    node.lineno)
 
 def fix_custom_lint(dir_path, context=None):
     if context is None:
