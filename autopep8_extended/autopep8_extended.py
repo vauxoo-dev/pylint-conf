@@ -60,45 +60,6 @@ class Pep8Extended(object):
             })
         return check_result
 
-    def v1_check_cw0001(self):
-        code = 'CW0001'
-        msg = self.get_checks()[code]
-        msg += ' Rename from "{old_class_name}" to "{new_class_name}".'
-        parsed = ast.parse('\n'.join(self.source))
-        class_renamed = {}  # Dict with class names 'old_name: new_name'
-        check_result = []
-        for node in ast.walk(parsed):
-            if isinstance(node, ast.ClassDef):
-                node_renamed = inflection.camelize(
-                    node.name, uppercase_first_letter=True)
-                class_renamed[node.name] = node_renamed
-                check_result.append({
-                    'id': code,
-                    'line': node.lineno,
-                    'column': node.col_offset + 1,
-                    'info': msg.format(
-                        old_class_name=node.name,
-                        new_class_name=node_renamed),
-                })
-            if isinstance(node, ast.Name) \
-               and node.id in class_renamed:
-                # To replace case where the variable "class_name"
-                # is used and change to "ClassName"
-                # Examples:
-                #   {'myparser': class_name...
-                #   method(class_name, parser=class_name)
-                #   class_name()
-                #   parser=class_name
-                check_result.append({
-                    'id': code,
-                    'line': node.lineno,
-                    'column': node.col_offset + 1,
-                    'info': msg.format(
-                        old_class_name=node.id,
-                        new_class_name=node_renamed),
-                })
-        return check_result
-
     def _execute_pep8_extendend(self):
         checks = self.get_checks()
         checks_results = []
@@ -135,23 +96,9 @@ def _execute_pep8(pep8_options, source):
     @param source: Lines of code.
     @return: list with all dict structures
     """
-
-    pep8_ignore = [
-        ignore
-        for ignore in pep8_options['ignore']
-        if not ignore.startswith('C')
-    ]
-    pep8_select = [
-        ignore
-        for ignore in pep8_options['select']
-        if not ignore.startswith('C')
-    ]
     pep8_extended_obj = Pep8Extended(pep8_options, source)
     res_extended = pep8_extended_obj._execute_pep8_extendend()
-    pep8_options_wo_custom = pep8_options.copy()
-    pep8_options_wo_custom['ignore'] = pep8_ignore
-    pep8_options_wo_custom['select'] = pep8_select
-    res = _execute_pep8_original(pep8_options_wo_custom, source)
+    res = _execute_pep8_original(pep8_options, source)
     res.extend(res_extended)
     return res
 
@@ -162,6 +109,23 @@ autopep8._execute_pep8 = _execute_pep8
 class FixPEP8(autopep8.FixPEP8):
 
     def fix_cw0001(self, result):
+        '''
+        :param result: Dict with next values
+            {
+            'id': code,
+            'line': line_number,
+            'column': column_number,
+            'info': 'Named of class has snake_case style, should'
+                    ' use CamelCase. Change of "{old_class_name}"'
+                    ' to "{new_class_name}" next (lines,columns):'
+                    ' {lines_columns}'
+            }
+            Where info keys values {old_class_name} to replace,
+            {new_class_name} is new class name,
+            {lines_columns} is a list of lines, columns
+            with invokes to {old_class_name}.
+        :return: Return list of integer with value of # line modified
+        '''
         regex_old_new = r'\"(?P<old>\w*)(\" to \")(?P<new>\w*)\"'
         match_old_new = re.search(regex_old_new, result['info'])
         regex_lc = r"(?P<lines_columns>\[[\(\d, \)]*\])"
@@ -170,7 +134,7 @@ class FixPEP8(autopep8.FixPEP8):
             return []
         str_old = match_old_new.group('old')
         str_new = match_old_new.group('new')
-        lines_columns = eval(match_lc.group('lines_columns'))
+        lines_columns = ast.literal_eval(match_lc.group('lines_columns'))
         lines_modified = []
         for line, column in lines_columns:
             target = self.source[line - 1]

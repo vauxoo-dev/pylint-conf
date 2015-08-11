@@ -1,10 +1,10 @@
-class MySnakeCaseClass:
+class my_snake_case_class:
     pass
 
-MySnakeCaseClass()
+my_snake_case_class()
 
-my_line_with_trailing_space = 'dummy'
+my_line_with_trailing_space = 'dummy' 
 
-#       overidentation comment
+        #       overidentation comment
 
-MySnakeCaseClass()
+my_snake_case_class()
