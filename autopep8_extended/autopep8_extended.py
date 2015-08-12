@@ -33,24 +33,27 @@ class Pep8Extended(object):
 
         # Fix 'SyntaxError: encoding declaration in Unicode string'
         parsed_source = self.source
+        line_deleted = False
         if 'coding' in parsed_source[0]:
             parsed_source = parsed_source[1:]
+            line_deleted = True
         elif 'coding' in parsed_source[1]:
             parsed_source = parsed_source[0:1] + parsed_source[2:]
+            line_deleted = True
         parsed = ast.parse(''.join(parsed_source))
-
         for node in ast.walk(parsed):
             if isinstance(node, ast.ClassDef):
                 node_renamed = inflection.camelize(
                     node.name, uppercase_first_letter=True)
-                class_renamed.setdefault(node.name, {'line_col': []})
-                class_renamed[node.name]['renamed'] = node_renamed
-                class_renamed[node.name]['line_col'].append((
-                    node.lineno, node.col_offset + 1))
+                if node_renamed != node.name:
+                    class_renamed.setdefault(node.name, {'line_col': []})
+                    class_renamed[node.name]['renamed'] = node_renamed
+                    class_renamed[node.name]['line_col'].append((
+                        node.lineno + line_deleted, node.col_offset + 1))
             if isinstance(node, ast.Name) \
                and node.id in class_renamed:
                 class_renamed[node.id]['line_col'].append((
-                    node.lineno, node.col_offset + 1))
+                    node.lineno + line_deleted, node.col_offset + 1))
         for class_original_name in class_renamed:
             line, column = class_renamed[
                 class_original_name]['line_col'][0]
