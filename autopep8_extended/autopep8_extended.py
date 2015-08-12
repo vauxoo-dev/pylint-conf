@@ -30,7 +30,15 @@ class Pep8Extended(object):
         msg = self.get_checks()[code]
         class_renamed = {}
         check_result = []
-        parsed = ast.parse(''.join(self.source))
+
+        # Fix 'SyntaxError: encoding declaration in Unicode string'
+        parsed_source = self.source
+        if 'coding' in parsed_source[0]:
+            parsed_source = parsed_source[1:]
+        elif 'coding' in parsed_source[1]:
+            parsed_source = parsed_source[0:1] + parsed_source[2:]
+        parsed = ast.parse(''.join(parsed_source))
+
         for node in ast.walk(parsed):
             if isinstance(node, ast.ClassDef):
                 node_renamed = inflection.camelize(
