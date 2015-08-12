@@ -41,10 +41,14 @@ class Pep8Extended(object):
             parsed_source = parsed_source[0:1] + parsed_source[2:]
             line_deleted = True
         parsed = ast.parse(''.join(parsed_source))
+        original_names = []
+        renamed_names = []
         for node in ast.walk(parsed):
             if isinstance(node, ast.ClassDef):
                 node_renamed = inflection.camelize(
                     node.name, uppercase_first_letter=True)
+                original_names.append(node.name)
+                renamed_names.append(node_renamed)
                 if node_renamed != node.name:
                     class_renamed.setdefault(node.name, {'line_col': []})
                     class_renamed[node.name]['renamed'] = node_renamed
@@ -54,6 +58,17 @@ class Pep8Extended(object):
                and node.id in class_renamed:
                 class_renamed[node.id]['line_col'].append((
                     node.lineno + line_deleted, node.col_offset + 1))
+        if set(renamed_names).issubset(set(original_names)):
+            # Avoid errors when you have
+            # Two class with same name but different style
+            # e.g. class my_class_1() and class MyClass1()
+            print("Waning: Aborted. You have two class named "
+                "my_name and MyName in a same file.\n"
+                "Review your next class names: "
+                "{0}".format(original_names)
+            )
+            return {}
+
         for class_original_name in class_renamed:
             line, column = class_renamed[
                 class_original_name]['line_col'][0]
