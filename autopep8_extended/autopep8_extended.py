@@ -30,19 +30,52 @@ class Pep8Extended(object):
         msg = self.get_checks()[code]
         class_renamed = {}
         check_result = []
-        parsed = ast.parse(''.join(self.source))
+
+        # Fix 'SyntaxError: encoding declaration in Unicode string'
+        parsed_source = self.source
+        line_deleted = False
+        if len(parsed_source) >= 1 and \
+           ('# -*- coding:' in parsed_source[0] or
+           '# -*- encoding:' in parsed_source[0]):
+            parsed_source = parsed_source[1:]
+            line_deleted = True
+        elif len(parsed_source) >= 2 and \
+            ('# -*- coding:' in parsed_source[1] or
+             '# -*- encoding:' in parsed_source[1]):
+            parsed_source = parsed_source[0:1] + parsed_source[2:]
+            line_deleted = True
+        parsed = ast.parse(''.join(parsed_source))
+
+        renamed_names = []
         for node in ast.walk(parsed):
             if isinstance(node, ast.ClassDef):
                 node_renamed = inflection.camelize(
                     node.name, uppercase_first_letter=True)
-                class_renamed.setdefault(node.name, {'line_col': []})
-                class_renamed[node.name]['renamed'] = node_renamed
-                class_renamed[node.name]['line_col'].append((
-                    node.lineno, node.col_offset + 1))
+                renamed_names.append(node_renamed)
+                if node_renamed != node.name:
+                    class_renamed.setdefault(
+                        node.name, {'line_col': []})
+                    class_renamed[node.name]['renamed'] = \
+                        node_renamed
+                    class_renamed[node.name]['line_col'].append((
+                        node.lineno + line_deleted,
+                        node.col_offset + 1))
             if isinstance(node, ast.Name) \
                and node.id in class_renamed:
                 class_renamed[node.id]['line_col'].append((
-                    node.lineno, node.col_offset + 1))
+                    node.lineno + line_deleted, node.col_offset + 1))
+        if len(set(renamed_names)) != len(renamed_names):
+            # Avoid errors when you have duplicated class name
+            # but with different style in same file.
+            # e.g. class my_class_1() and class MyClass1()
+            print(
+                "Waning: Aborted. You have two class named "
+                "my_name and MyName in a same file.\n"
+                "Review your next class names: "
+                "{0}".format(renamed_names)
+            )
+            return check_result
+
         for class_original_name in class_renamed:
             line, column = class_renamed[
                 class_original_name]['line_col'][0]
@@ -110,6 +143,7 @@ class FixPEP8(autopep8.FixPEP8):
 
     def fix_cw0001(self, result):
         '''
+        Replace class name from snake_case to CamelCase
         :param result: Dict with next values
             {
             'id': code,
@@ -134,7 +168,8 @@ class FixPEP8(autopep8.FixPEP8):
             return []
         str_old = match_old_new.group('old')
         str_new = match_old_new.group('new')
-        lines_columns = ast.literal_eval(match_lc.group('lines_columns'))
+        lines_columns = ast.literal_eval(
+            match_lc.group('lines_columns'))
         lines_modified = []
         for line, column in lines_columns:
             target = self.source[line - 1]
