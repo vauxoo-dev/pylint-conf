@@ -1,3 +1,6 @@
+THIS MODULE IS DEPRECATED HERE.
+YOU CAN GO TO https://github.com/OCA/maintainer-tools/pull/105
+
 .. image:: https://img.shields.io/badge/licence-AGPL--3-blue.svg
     :alt: License: AGPL-3
 
